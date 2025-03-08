@@ -1,8 +1,13 @@
 {
-  "name": "ollama-copilot",
-  "displayName": "ollama-copilot",
-  "description": "AI Chat feature powered by Ollama Local LLMs",
-  "version": "0.0.1",
+  "name": "ollama-dev-companion",
+  "displayName": "Ollama Dev Companion",
+  "description": "AI Chat and Inline Code Suggestions powered by Ollama Local LLMs",
+  "version": "0.1.4",
+  "publisher": "Gnana997",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gnana997/ollama-copilot.git"
+  },
   "engines": {
     "vscode": "^1.97.0"
   },
@@ -13,6 +18,7 @@
     "onStartupFinished"
   ],
   "main": "./out/extension.js",
+  "icon": "media/png/ollama-dev-comp.png",
   "contributes": {
     "configuration": {
       "title": "Ollama Copilot",
