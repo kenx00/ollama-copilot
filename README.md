@@ -2,7 +2,7 @@
 
 Ollama Copilot integrates local LLMs from [Ollama](https://ollama.ai/) directly into VS Code, providing AI-powered code completion and an interactive chat experience with your own locally-running models.
 
-![Inline Suggestions and Model Selection](media/demo/inline-suggestions.gif)
+![Inline Suggestions and Model Selection](media/demo/inlinesuggestions.gif)
 
 ## Changelog
 
@@ -24,7 +24,7 @@ Get contextual code suggestions as you type, powered by your local Ollama models
 - Variable and function name awareness
 - Tab completion support
 
-![Chat Interface](media/demo/chat.gif)
+![Chat Interface](media/demo/chatDemo.gif)
 
 ### Interactive Chat Interface
 Engage with your code through:
