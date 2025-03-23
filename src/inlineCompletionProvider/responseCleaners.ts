@@ -10,24 +10,47 @@ export function cleanAIResponse(
 
   const currentLine = document.lineAt(position.line).text;
   const linePrefix = currentLine.substring(0, position.character);
-  const indentation = linePrefix.match(/^\s*/)?.[0] || "";
+  const baseIndentation = linePrefix.match(/^\s*/)?.[0] || "";
 
-  // Extract only the first valid code-like line
-  let cleaned = response
-    .replace(/<think>[\s\S]*?(<\/think>|$)/gi, '') // Remove <think> blocks
-    .replace(/```[\s\S]*?```/g, '') // Remove code blocks
-    .replace(/\/\/.*$/gm, '') // Remove single-line comments
-    .replace(/#.*/g, '') // Remove Python-style comments
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line && /^[a-zA-Z0-9'"`{}=+\-*/.;[\]()]+$/.test(line)) // Only code-like content
-    .shift() || ""; // Take first valid line
+  // Extract code between markdown code fence markers
+  const codeBlockMatch = response.match(/```(?:\w+)?\n([\s\S]*?)```/);
+  if (codeBlockMatch) {
+    // Use the code inside the code block
+    response = codeBlockMatch[1];
+  }
+
+  // Split into lines and process while preserving relative indentation
+  const lines = response.split('\n');
+  
+  // Find minimum indentation level (ignoring empty lines)
+  const minIndent = Math.min(
+    ...lines
+      .filter(line => line.trim())
+      .map(line => {
+        const match = line.match(/^\s*/);
+        return match ? match[0].length : 0;
+      })
+  );
+
+  // Process lines while preserving relative indentation
+  let cleaned = lines
+    .map(line => {
+      if (!line.trim() || line.startsWith('```')) return ''; // Remove empty lines and fence markers
+      const match = line.match(/^\s*/);
+      const lineIndent = match ? match[0] : '';
+      const relativeIndent = ' '.repeat(Math.max(0, lineIndent.length - minIndent));
+      return baseIndentation + relativeIndent + line.trim();
+    })
+    .filter(Boolean) // Remove empty lines
+    .join('\n');
 
   // Context-specific adjustments
   if (/['"`]$/.test(linePrefix)) {
     cleaned = cleaned.replace(/['"`]/g, ''); // Strip quotes for string literals
   } else if (/{$/.test(linePrefix.trim())) {
-    cleaned = `${indentation}  ${cleaned}`; // Indent for blocks
+    cleaned = cleaned.split('\n')
+      .map((line, i) => i === 0 ? line : baseIndentation + '  ' + line.trim())
+      .join('\n');
   } else if (linePrefix.trim().endsWith('=')) {
     cleaned = cleaned.replace(/;\s*$/, ''); // Remove trailing semicolon after =
   }

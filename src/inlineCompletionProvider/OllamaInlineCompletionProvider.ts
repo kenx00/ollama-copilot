@@ -13,9 +13,20 @@ export class OllamaInlineCompletionProvider implements vscode.InlineCompletionIt
   private readonly completionCache: LRUCache<string, { completion: string; timestamp: number }>;
   private readonly CACHE_SIZE = 100;
   private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  private disposables: vscode.Disposable[] = [];
 
   constructor() {
     this.completionCache = new LRUCache(this.CACHE_SIZE);
+  }
+
+  public dispose() {
+    this.disposables.forEach(d => d.dispose());
+    if (this.debounceTimeout) {
+      clearTimeout(this.debounceTimeout);
+    }
+    if (this.currentResponse) {
+      this.currentResponse.abort();
+    }
   }
 
   public clearCache(): void {
@@ -36,36 +47,26 @@ export class OllamaInlineCompletionProvider implements vscode.InlineCompletionIt
     token: vscode.CancellationToken
   ): Promise<vscode.InlineCompletionItem[] | undefined> {
     const linePrefix = document.lineAt(position.line).text.substring(0, position.character);
-  
+    
+    // Generate cache key based on context
     const cacheKey = this.generateCacheKey(document, position);
-    const cachedResult = this.completionCache.get(cacheKey);
-    if (cachedResult && Date.now() - cachedResult.timestamp < this.CACHE_TTL) {
-      const uniqueCompletion = getUniqueCompletion(cachedResult.completion, linePrefix);
-      if (uniqueCompletion) {
-        console.log("Returning cached completion:", uniqueCompletion);
-        return [new vscode.InlineCompletionItem(uniqueCompletion)];
-      }
+    
+    // Check cache first
+    const cached = this.completionCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      return [new vscode.InlineCompletionItem(cached.completion, new vscode.Range(position, position))];
     }
-  
-    if (this.currentResponse && token.isCancellationRequested) {
+
+    // Cancel any pending requests
+    if (this.currentResponse) {
       this.currentResponse.abort();
       this.currentResponse = null;
     }
-  
+
     if (this.debounceTimeout) {
       clearTimeout(this.debounceTimeout);
-      this.debounceTimeout = null;
     }
-  
-    const abortHandler = () => {
-      if (this.currentResponse) {
-        this.currentResponse.abort();
-        this.currentResponse = null;
-        console.log("Aborted due to token cancellation");
-      }
-    };
-    token.onCancellationRequested(abortHandler);
-  
+
     return new Promise((resolve) => {
       this.debounceTimeout = setTimeout(async () => {
         try {
@@ -76,19 +77,20 @@ export class OllamaInlineCompletionProvider implements vscode.InlineCompletionIt
             resolve(undefined);
             return;
           }
-  
+
           const fileContext = getFileContext(document, position);
           console.log("File context:", fileContext);
           const prompt = generatePrompt(fileContext, document, position);
           console.log("Prompt:", prompt);
+
           const completion = await this.generateCompletion(prompt, model, token);
-  
+
           if (token.isCancellationRequested) {
-            console.log("Request cancelled before completion");
+            console.log("Request cancelled");
             resolve(undefined);
             return;
           }
-  
+
           const cleanedCompletion = cleanAIResponse(completion, document, position);
           console.log("Cleaned response:", cleanedCompletion);
           if (!cleanedCompletion) {
@@ -96,29 +98,18 @@ export class OllamaInlineCompletionProvider implements vscode.InlineCompletionIt
             resolve(undefined);
             return;
           }
-  
+
           this.completionCache.set(cacheKey, {
             completion: cleanedCompletion,
             timestamp: Date.now(),
           });
-          const uniqueCompletion = getUniqueCompletion(cleanedCompletion, linePrefix);
-          console.log("Unique completion:", uniqueCompletion);
-          if (uniqueCompletion) {
-            const item = new vscode.InlineCompletionItem(uniqueCompletion, new vscode.Range(position, position));
-            console.log("Returning completion item:", JSON.stringify(item));
-            resolve([item]);
-          } else {
-            console.log("No unique completion available");
-            resolve(undefined);
-          }
+
+          const item = new vscode.InlineCompletionItem(cleanedCompletion, new vscode.Range(position, position));
+          console.log("Returning completion item:", JSON.stringify(item));
+          resolve([item]);
         } catch (error) {
-          if (error instanceof Error && error.name === "AbortError") {
-            console.log("Caught AbortError");
-            resolve(undefined);
-          } else {
-            console.error("Completion error:", error);
-            resolve(undefined);
-          }
+          console.error("Error in provideInlineCompletionItems:", error);
+          resolve(undefined);
         }
       }, this.DEBOUNCE_DELAY);
     });
@@ -152,14 +143,12 @@ export class OllamaInlineCompletionProvider implements vscode.InlineCompletionIt
           console.log("Request aborted during streaming");
           this.currentResponse.abort();
           this.currentResponse = null;
-          return "";
+          return fullResponse;
         }
         if (part.message?.content) {
           fullResponse += part.message.content;
-          console.log("Received stream:", part.message.content);
         }
       }
-      console.log("Full response:", fullResponse);
       return fullResponse;
     } finally {
       this.currentResponse = null;

@@ -138,52 +138,52 @@ export function getFileContext(
   document: vscode.TextDocument,
   position: vscode.Position
 ): string {
-  // Get imports and relevant code context
-  const fullText = document.getText();
-  const lines = fullText.split("\n");
-  const imports = lines
-    .filter((line) => line.trim().startsWith("import"))
-    .join("\n");
+  const MAX_CONTEXT_LINES = 1000; // Maximum number of lines to include
+  const PREFERRED_LINES_BEFORE = 500; // Preferred number of lines before cursor
+  const PREFERRED_LINES_AFTER = 100; // Preferred number of lines after cursor
 
-  // Get the current function/class context
-  let contextStart = position.line;
-  let bracketCount = 0;
-  let inObjectLiteral = false;
-
-  // Scan backwards to find the start of the current block/statement
-  while (contextStart > 0) {
-    const line = lines[contextStart].trim();
-
-    // Count brackets to maintain context
-    bracketCount += (line.match(/{/g) || []).length;
-    bracketCount -= (line.match(/}/g) || []).length;
-
-    // Check for object literal initialization
-    if (line.includes("=") && line.includes("{")) {
-      inObjectLiteral = true;
+  // Get the total number of lines in the document
+  const totalLines = document.lineCount;
+  
+  // Calculate the actual lines we can include
+  const startLine = Math.max(0, position.line - PREFERRED_LINES_BEFORE);
+  const endLine = Math.min(totalLines - 1, position.line + PREFERRED_LINES_AFTER);
+  
+  // If we're going to exceed MAX_CONTEXT_LINES, adjust the range
+  const totalContextLines = endLine - startLine + 1;
+  if (totalContextLines > MAX_CONTEXT_LINES) {
+    // Prioritize lines before the cursor
+    const linesToReduce = totalContextLines - MAX_CONTEXT_LINES;
+    const reduceFromEnd = Math.ceil(linesToReduce * 0.7); // Reduce more from the end
+    const reduceFromStart = linesToReduce - reduceFromEnd;
+    
+    const adjustedStartLine = startLine + reduceFromStart;
+    const adjustedEndLine = endLine - reduceFromEnd;
+    
+    // Get the lines within our adjusted range
+    const contextLines = [];
+    for (let i = adjustedStartLine; i <= adjustedEndLine; i++) {
+      contextLines.push(document.lineAt(i).text);
     }
-
-    // Find the start of the current context
-    if (
-      bracketCount === 0 &&
-      (line.startsWith("class") ||
-        line.startsWith("function") ||
-        line.startsWith("const") ||
-        line.startsWith("let") ||
-        line.startsWith("var") ||
-        line.startsWith("interface") ||
-        line.startsWith("type"))
-    ) {
-      break;
-    }
-    contextStart--;
+    
+    // Add indicators for truncated content
+    const beforeContext = adjustedStartLine > 0 ? '// ... previous code truncated ...\n' : '';
+    const afterContext = adjustedEndLine < totalLines - 1 ? '\n// ... remaining code truncated ...' : '';
+    
+    return beforeContext + contextLines.join('\n') + afterContext;
   }
-
-  const relevantLines = lines.slice(
-    Math.max(0, contextStart - 5),
-    position.line + 1
-  );
-  return `${imports}\n\n${relevantLines.join("\n")}`;
+  
+  // If within limits, get all the lines
+  const contextLines = [];
+  for (let i = startLine; i <= endLine; i++) {
+    contextLines.push(document.lineAt(i).text);
+  }
+  
+  // Add indicators for content outside our range
+  const beforeContext = startLine > 0 ? '// ... previous code truncated ...\n' : '';
+  const afterContext = endLine < totalLines - 1 ? '\n// ... remaining code truncated ...' : '';
+  
+  return beforeContext + contextLines.join('\n') + afterContext;
 }
 
 /**
