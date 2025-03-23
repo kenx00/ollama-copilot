@@ -2,7 +2,7 @@
   "name": "ollama-dev-companion",
   "displayName": "Ollama Dev Companion",
   "description": "AI Chat and Inline Code Suggestions powered by Ollama Local LLMs",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "publisher": "Gnana997",
   "license": "MIT",
   "repository": {
@@ -13,7 +13,23 @@
     "vscode": "^1.97.0"
   },
   "categories": [
-    "Other"
+    "Programming Languages",
+    "Machine Learning",
+    "AI",
+    "Snippets",
+    "Chat"
+  ],
+  "keywords": [
+    "ai",
+    "copilot",
+    "code completion",
+    "ollama",
+    "llm",
+    "local ai",
+    "chat",
+    "code assistant",
+    "autocomplete",
+    "pair programming"
   ],
   "activationEvents": [
     "onStartupFinished"
