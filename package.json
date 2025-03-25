@@ -2,7 +2,7 @@
   "name": "ollama-dev-companion",
   "displayName": "Ollama Dev Companion",
   "description": "AI Chat and Inline Code Suggestions powered by Ollama Local LLMs",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "publisher": "Gnana997",
   "license": "MIT",
   "repository": {
