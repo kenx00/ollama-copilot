@@ -82,12 +82,16 @@ For the best experience, we recommend:
 ## Installing Models
 
 ```bash
-# Install recommended models
+# Qwen - Powerful 14B model with strong coding capabilities
 ollama pull qwen:14b
+
+# CodeLlama - Meta's specialized coding model
 ollama pull codellama:13b
+
+# Mixtral - High-performance 8x7B model
 ollama pull mixtral:8x7b
 
-# List installed models
+# List all installed models
 ollama list
 ```
 
