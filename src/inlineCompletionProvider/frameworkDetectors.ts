@@ -9,7 +9,7 @@ import * as vscode from "vscode";
  */
 export function getFrameworkContext(
   document: vscode.TextDocument,
-  position: vscode.Position,
+  _position: vscode.Position,
   language: string
 ): string {
   const text = document.getText();

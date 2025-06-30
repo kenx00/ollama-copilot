@@ -4,15 +4,24 @@ Ollama Copilot integrates local LLMs from [Ollama](https://ollama.ai/) directly 
 
 ![Inline Suggestions and Model Selection](media/demo/inlinesuggestions.gif)
 
-## Changelog
+## What's New in v0.2.0 🎉
 
-### Version 0.1.5
-- 🚀 Improved inline suggestions with expanded context (up to 1000 lines)
-- 🔄 Fixed Tab key acceptance for multi-line suggestions
-- 🎯 Better code completion accuracy with enhanced context awareness
-- 💡 Added support for more Ollama models including Qwen and Mixtral
-- 🛠️ Improved error handling and connection stability
-- 📝 Enhanced documentation with visual guides
+### Major Architecture Overhaul
+- **Enterprise-grade Dependency Injection**: Complete rewrite with DI container for better modularity
+- **Enhanced Security**: Comprehensive input validation, path security, and XSS prevention
+- **Performance Monitoring**: Built-in metrics and resource management
+- **Improved Reliability**: Automatic error recovery and retry mechanisms
+
+### Chat Experience Improvements
+- **Thinking Indicator**: Collapsible dropdown showing AI processing (like Cursor IDE)
+- **Stop Generation**: Ability to stop responses mid-stream
+
+### 🚀 Coming Soon
+- **MCP Server Support**: Native Model Context Protocol integration
+- **Smart Repository Indexing**: Automatic codebase analysis for better suggestions
+- **Enhanced Context Awareness**: Improved understanding of your project structure
+
+[See full changelog](CHANGELOG.md)
 
 ## Features
 

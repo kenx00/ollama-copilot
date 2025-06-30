@@ -1,5 +1,7 @@
 import ollama from 'ollama';
 import * as vscode from 'vscode';
+// Removed unused import
+import { sanitizeModelName } from './sanitization';
 
 /**
  * Initializes the Ollama client and tests the connection
@@ -43,11 +45,22 @@ export async function getAvailableOllamaModels(): Promise<ModelInfo[]> {
   const maxRetries = 3;
   let retries = 0;
   let lastError = null;
+  // Validation service removed - using direct validation
   
   while (retries < maxRetries) {
     try {
       const config = vscode.workspace.getConfiguration('ollama');
       const apiHost = config.get<string>('apiHost') || 'http://localhost:11434';
+      
+      // Basic URL validation
+      try {
+        const url = new URL(apiHost);
+        if (!['http:', 'https:'].includes(url.protocol)) {
+          throw new Error('Invalid protocol');
+        }
+      } catch {
+        throw new Error(`Invalid API host URL: ${apiHost}`);
+      }
       
       // For debugging
       console.log(`Attempt ${retries + 1} to get models from: ${apiHost}`);
@@ -62,8 +75,10 @@ export async function getAvailableOllamaModels(): Promise<ModelInfo[]> {
       console.log(`Successfully retrieved ${response.models.length} models from Ollama`);
       
       const availableModels = response.models.map((model) => {
+        // Sanitize model name
+        const sanitizedName = sanitizeModelName(model.name);
         return {
-          label: model.name,
+          label: sanitizedName,
           details: model.details ? `${model.details.family || ''} ${model.details.parameter_size || ''}`.trim() : ''
         };
       });
@@ -109,9 +124,18 @@ export async function getSelectedModel(): Promise<string | undefined> {
   });
   
   if (model) {
-    await config.update('ollama.defaultModel', model.label, true);
-    vscode.window.showInformationMessage(`Selected model: ${model.label}`);
-    return model.label;
+    // Validate model name before saving
+    // Validation service removed - using direct validation
+    const sanitizedModel = sanitizeModelName(model.label);
+    
+    if (sanitizedModel) {
+      await config.update('ollama.defaultModel', sanitizedModel, true);
+      vscode.window.showInformationMessage(`Selected model: ${sanitizedModel}`);
+      return sanitizedModel;
+    } else {
+      vscode.window.showErrorMessage(`Invalid model name: ${model.label}`);
+      return undefined;
+    }
   }
   
   return undefined;

@@ -13,6 +13,152 @@
   // Get VS Code API
   const vscode = acquireVsCodeApi();
   
+  // Security utility functions
+  
+  /**
+   * Escapes HTML special characters to prevent XSS
+   */
+  function escapeHtml(text) {
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;',
+      '/': '&#x2F;',
+      '`': '&#x60;',
+      '=': '&#x3D;'
+    };
+    
+    return String(text).replace(/[&<>"'`=\/]/g, (char) => map[char]);
+  }
+  
+  /**
+   * Sanitizes language identifier for code blocks
+   */
+  function sanitizeLanguage(language) {
+    // Only allow alphanumeric characters, hyphens, and underscores
+    return String(language).replace(/[^a-zA-Z0-9_-]/g, '');
+  }
+  
+  /**
+   * Creates a safe code block element
+   */
+  function createSafeCodeBlock(code, language) {
+    const pre = document.createElement('pre');
+    const codeElement = document.createElement('code');
+    
+    if (language) {
+      const sanitizedLang = sanitizeLanguage(language);
+      if (sanitizedLang) {
+        codeElement.className = `language-${sanitizedLang}`;
+      }
+    }
+    
+    // Use textContent to prevent any HTML interpretation
+    codeElement.textContent = code;
+    pre.appendChild(codeElement);
+    
+    return pre;
+  }
+  
+  /**
+   * Creates a safe inline code element
+   */
+  function createSafeInlineCode(code) {
+    const codeElement = document.createElement('code');
+    codeElement.textContent = code;
+    return codeElement;
+  }
+  
+  /**
+   * Renders markdown-like content safely using DOM methods
+   */
+  function renderMarkdownSafely(content, container) {
+    // Clear the container
+    container.innerHTML = '';
+    
+    // Split content by code blocks first
+    const parts = content.split(/(```[a-z]*\n[\s\S]*?```)/g);
+    
+    parts.forEach(part => {
+      if (part.startsWith('```')) {
+        // Handle code block
+        const match = part.match(/```([a-z]*)\n([\s\S]*?)```/);
+        if (match) {
+          const language = match[1];
+          const code = match[2];
+          container.appendChild(createSafeCodeBlock(code, language));
+        }
+      } else {
+        // Handle regular text with inline code
+        const inlineParts = part.split(/(`[^`]+`)/g);
+        
+        inlineParts.forEach(inlinePart => {
+          if (inlinePart.startsWith('`') && inlinePart.endsWith('`')) {
+            // Inline code
+            const code = inlinePart.slice(1, -1);
+            container.appendChild(createSafeInlineCode(code));
+          } else {
+            // Regular text - create text nodes
+            const lines = inlinePart.split('\n');
+            lines.forEach((line, index) => {
+              if (line) {
+                const textNode = document.createTextNode(line);
+                container.appendChild(textNode);
+              }
+              if (index < lines.length - 1) {
+                container.appendChild(document.createElement('br'));
+              }
+            });
+          }
+        });
+      }
+    });
+  }
+  
+  /**
+   * Sanitizes and validates model names
+   */
+  function sanitizeModelName(modelName) {
+    // Only allow safe characters for model names
+    return String(modelName).replace(/[^a-zA-Z0-9_\-.:]/g, '');
+  }
+  
+  /**
+   * Creates a safe option element
+   */
+  function createSafeOption(value, text, title, selected) {
+    const option = document.createElement('option');
+    option.value = sanitizeModelName(value);
+    option.textContent = text; // textContent is safe
+    if (title) {
+      option.title = escapeHtml(title);
+    }
+    if (selected) {
+      option.selected = true;
+    }
+    return option;
+  }
+  
+  /**
+   * Creates a safe list item for context files
+   */
+  function createSafeFileListItem(fileName, index, onRemove) {
+    const li = document.createElement('li');
+    
+    // Use textContent for safe text insertion
+    li.textContent = fileName;
+    
+    const removeBtn = document.createElement('span');
+    removeBtn.textContent = '×';
+    removeBtn.className = 'context-file-remove';
+    removeBtn.addEventListener('click', onRemove);
+    
+    li.appendChild(removeBtn);
+    return li;
+  }
+  
   // Log when the document is ready
   function checkElementsExist() {
     console.log('Checking DOM elements...');
@@ -97,7 +243,7 @@
     modelSelect.addEventListener('change', () => {
       vscode.postMessage({
         type: 'selectModel',
-        model: modelSelect.value
+        model: sanitizeModelName(modelSelect.value)
       });
     });
     
@@ -228,28 +374,22 @@
   
   // Update the UI with context files
   function updateContextFilesUI() {
-    contextFilesList.innerHTML = '';
+    // Clear the list safely
+    while (contextFilesList.firstChild) {
+      contextFilesList.removeChild(contextFilesList.firstChild);
+    }
     
     if (contextFiles.length === 0) {
       return;
     }
     
     contextFiles.forEach((file, index) => {
-      const li = document.createElement('li');
-      
       const fileName = file.split('/').pop();
-      li.textContent = fileName;
-      
-      const removeBtn = document.createElement('span');
-      removeBtn.textContent = '×';
-      removeBtn.className = 'context-file-remove';
-      removeBtn.addEventListener('click', () => {
+      const li = createSafeFileListItem(fileName, index, () => {
         contextFiles.splice(index, 1);
         updateContextFilesUI();
         updateState();
       });
-      
-      li.appendChild(removeBtn);
       contextFilesList.appendChild(li);
     });
     
@@ -338,7 +478,7 @@
     console.log('Updating streaming message with content length:', content.length);
     
     // Update both the streaming message and the loading content
-    const streamingMessage = document.getElementById('streaming-message');
+    let streamingMessage = document.getElementById('streaming-message');
     const loadingContent = document.getElementById('loading-content');
     
     if (!content || content.trim() === '') {
@@ -346,33 +486,26 @@
       return;
     }
     
-    // Process markdown-like code blocks in the content
-    let formattedContent = content.replace(/```([a-z]*)\n([\s\S]*?)```/g, function(match, language, code) {
-      return `<pre><code class="language-${language}">${escapeHtml(code)}</code></pre>`;
-    });
-    
-    // Process inline code
-    formattedContent = formattedContent.replace(/`([^`]+)`/g, '<code>$1</code>');
-    
     // Update streaming message if it exists
     if (streamingMessage) {
       console.log('Updating streaming message element');
-      streamingMessage.innerHTML = formattedContent;
+      // Clear and re-render safely
+      renderMarkdownSafely(content, streamingMessage);
     } else {
       console.log('Streaming message element not found, creating it');
       // Try to recreate it if it doesn't exist
-      const newStreamingMessage = document.createElement('div');
-      newStreamingMessage.className = 'chat-message assistant streaming';
-      newStreamingMessage.id = 'streaming-message';
-      newStreamingMessage.innerHTML = formattedContent;
-      chatMessages.appendChild(newStreamingMessage);
+      streamingMessage = document.createElement('div');
+      streamingMessage.className = 'chat-message assistant streaming';
+      streamingMessage.id = 'streaming-message';
+      renderMarkdownSafely(content, streamingMessage);
+      chatMessages.appendChild(streamingMessage);
       console.log('Created new streaming message element');
     }
     
     // Update loading content if it exists
     if (loadingContent) {
       console.log('Updating loading content element');
-      loadingContent.innerHTML = formattedContent;
+      renderMarkdownSafely(content, loadingContent);
       
       // Make sure the loading indicator is visible
       const loadingIndicator = document.getElementById('loading-indicator');
@@ -396,7 +529,7 @@
   function showError(message) {
     const errorDiv = document.createElement('div');
     errorDiv.className = 'error-message';
-    errorDiv.textContent = message;
+    errorDiv.textContent = message; // textContent is safe
     
     chatMessages.appendChild(errorDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -413,9 +546,10 @@
     const messages = Array.from(chatMessages.children)
       .filter(el => el.classList.contains('chat-message'))
       .map(el => {
+        // Store the text content, not innerHTML
         return {
           role: el.classList.contains('user') ? 'user' : 'assistant',
-          content: el.innerHTML
+          content: el.textContent || ''
         };
       });
     
@@ -437,8 +571,8 @@
     switch (message.type) {
       case 'updateModelInfo':
         // Populate model selection dropdown
-        console.log('Received models:', message.models);
-        console.log('Selected model:', message.selectedModel);
+        console.log('Received models:', message.payload?.models);
+        console.log('Selected model:', message.payload?.selectedModel);
         
         // Check if modelSelect exists
         if (!modelSelect) {
@@ -449,32 +583,31 @@
           console.log('Model select element found:', modelSelect);
         }
         
-        modelSelect.innerHTML = '';
+        // Clear options safely
+        while (modelSelect.firstChild) {
+          modelSelect.removeChild(modelSelect.firstChild);
+        }
         
         // Check if models array exists and has items
-        if (!message.models || !Array.isArray(message.models) || message.models.length === 0) {
-          console.error('No models received or invalid format!', message.models);
+        if (!message.payload?.models || !Array.isArray(message.payload.models) || message.payload.models.length === 0) {
+          console.error('No models received or invalid format!', message.payload?.models);
           
           // Add a placeholder option
-          const placeholderOption = document.createElement('option');
-          placeholderOption.textContent = 'No models available';
+          const placeholderOption = createSafeOption('', 'No models available', '', false);
           placeholderOption.disabled = true;
           placeholderOption.selected = true;
           modelSelect.appendChild(placeholderOption);
         } else {
           // Models array exists, try to add options
           try {
-            message.models.forEach((model, index) => {
+            message.payload.models.forEach((model, index) => {
               console.log(`Adding model ${index}:`, model);
-              const option = document.createElement('option');
-              option.value = model.label;
-              option.textContent = model.label;
-              if (model.details) {
-                option.title = model.details;
-              }
-              if (model.label === message.selectedModel) {
-                option.selected = true;
-              }
+              const option = createSafeOption(
+                model.name || model.label,
+                model.name || model.label,
+                model.details,
+                (model.name || model.label) === message.payload.selectedModel
+              );
               modelSelect.appendChild(option);
             });
             
@@ -488,13 +621,14 @@
         break;
         
       case 'addMessage':
-        addMessageToUI(message.role, message.content);
+        addMessageToUI(message.payload?.role || message.role, message.payload?.content || message.content);
         break;
         
       case 'streamContent':
-        console.log('Received streamContent message with content length:', message.content ? message.content.length : 0);
-        if (message.content) {
-          updateStreamingMessage(message.content);
+        const content = message.payload?.content || message.content;
+        console.log('Received streamContent message with content length:', content ? content.length : 0);
+        if (content) {
+          updateStreamingMessage(content);
         } else {
           console.error('Received empty content in streamContent message');
         }
@@ -554,37 +688,45 @@
         break;
         
       case 'updateContextFiles':
-        contextFiles = message.files;
+        contextFiles = message.payload?.files || message.files;
         updateContextFilesUI();
         break;
         
       case 'addCodeSelection':
-        const codeContext = `Selected code from ${message.fileName}:\n\`\`\`\n${message.code}\n\`\`\``;
+        // Safely add code selection
+        const fileName = message.payload?.fileName || message.fileName;
+        const code = message.payload?.code || message.code;
+        const codeContext = `Selected code from ${escapeHtml(fileName)}:\n\`\`\`\n${code}\n\`\`\``;
         messageInput.value = messageInput.value ? `${messageInput.value}\n\n${codeContext}` : codeContext;
         messageInput.focus();
         break;
         
       case 'setLoading':
-        console.log('Received setLoading message:', message.loading);
-        showLoading(message.loading);
+        const loading = message.payload?.loading !== undefined ? message.payload.loading : message.loading;
+        console.log('Received setLoading message:', loading);
+        showLoading(loading);
         break;
         
       case 'showError':
-        showError(message.message);
+        showError(message.payload?.message || message.message);
         break;
         
       case 'clearChat':
-        // Clear chat messages
+        // Clear chat messages safely
         if (chatMessages) {
-          chatMessages.innerHTML = '';
+          while (chatMessages.firstChild) {
+            chatMessages.removeChild(chatMessages.firstChild);
+          }
         }
         // Clear input
         if (messageInput) {
           messageInput.value = '';
         }
-        // Clear context files
+        // Clear context files safely
         if (contextFilesList) {
-          contextFilesList.innerHTML = '';
+          while (contextFilesList.firstChild) {
+            contextFilesList.removeChild(contextFilesList.firstChild);
+          }
         }
         // Reset workspace checkbox
         if (useWorkspaceCheckbox) {
@@ -605,15 +747,9 @@
     const messageDiv = document.createElement('div');
     messageDiv.className = `chat-message ${role}`;
     
-    // Process markdown-like code blocks in the content
-    content = content.replace(/```([a-z]*)\n([\s\S]*?)```/g, function(match, language, code) {
-        return `<pre><code class="language-${language}">${escapeHtml(code)}</code></pre>`;
-    });
+    // Render content safely
+    renderMarkdownSafely(content, messageDiv);
     
-    // Process inline code
-    content = content.replace(/`([^`]+)`/g, '<code>$1</code>');
-    
-    messageDiv.innerHTML = content;
     chatMessages.appendChild(messageDiv);
     
     // Scroll to bottom
@@ -623,10 +759,4 @@
     updateState();
   }
   
-  // Escape HTML to prevent XSS
-  function escapeHtml(html) {
-    const div = document.createElement('div');
-    div.textContent = html;
-    return div.innerHTML;
-  }
 })(); 

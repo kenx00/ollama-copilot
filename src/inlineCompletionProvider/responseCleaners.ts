@@ -66,3 +66,77 @@ export function getUniqueCompletion(completion: string, linePrefix: string): str
   }
   return completion;
 }
+
+export function cleanCompletion(response: string): string {
+  if (!response.trim()) return "";
+  
+  // Remove all markdown code fences (including nested ones)
+  let cleaned = response;
+  
+  // Remove all occurrences of ```language at the start of lines
+  cleaned = cleaned.replace(/^```\w*$/gm, '');
+  
+  // Remove inline ```language markers
+  cleaned = cleaned.replace(/```\w+/g, '');
+  
+  // Remove standalone ``` markers
+  cleaned = cleaned.replace(/```/g, '');
+  
+  // Extract code from markdown code blocks if they still exist
+  const codeBlockMatch = cleaned.match(/^```(?:\w+)?\n([\s\S]*?)\n```$/m);
+  if (codeBlockMatch) {
+    cleaned = codeBlockMatch[1];
+  }
+  
+  // Split into lines for further processing
+  const lines = cleaned.split('\n');
+  
+  // Filter out unwanted lines
+  const cleanedLines = lines.filter((line, index) => {
+    const trimmedLine = line.trim();
+    
+    // Remove empty lines at the start
+    if (index === 0 && !trimmedLine) return false;
+    
+    // Remove lines that are just language identifiers
+    if (/^(go|javascript|typescript|python|java|c\+\+|c|rust|swift|kotlin|ruby|php)$/i.test(trimmedLine)) {
+      return false;
+    }
+    
+    // Remove lines that look like markdown headers or explanations
+    if (trimmedLine.startsWith('#') && !trimmedLine.startsWith('#!')) return false;
+    if (trimmedLine.startsWith('---') || trimmedLine.startsWith('===')) return false;
+    if (trimmedLine.startsWith('```')) return false;
+    
+    // Remove explanatory comments (but keep TODO comments and code comments)
+    if (trimmedLine.startsWith('//') && 
+        !trimmedLine.startsWith('// TODO') && 
+        !trimmedLine.startsWith('// FIXME') &&
+        !trimmedLine.startsWith('// NOTE') &&
+        !trimmedLine.startsWith('// @')) {
+      // Check if it looks like an explanation rather than a code comment
+      const lowerLine = trimmedLine.toLowerCase();
+      if (lowerLine.includes('this is') || 
+          lowerLine.includes('here is') || 
+          lowerLine.includes('the following') ||
+          lowerLine.includes('example:') ||
+          lowerLine.includes('returns') && lowerLine.includes('function')) {
+        return false;
+      }
+    }
+    
+    return true;
+  });
+  
+  // Join lines and do final cleanup
+  cleaned = cleanedLines.join('\n').trim();
+  
+  // Final safety check - if the response still contains markdown indicators, return empty
+  if (cleaned.includes('```')) {
+    console.warn('[cleanCompletion] Response still contains markdown after cleaning:', cleaned);
+    // Try one more aggressive cleanup
+    cleaned = cleaned.split('```')[0].trim();
+  }
+  
+  return cleaned;
+}

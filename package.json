@@ -2,7 +2,7 @@
   "name": "ollama-dev-companion",
   "displayName": "Ollama Dev Companion",
   "description": "AI Chat and Inline Code Suggestions powered by Ollama Local LLMs",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "publisher": "Gnana997",
   "license": "MIT",
   "repository": {
@@ -66,6 +66,61 @@
           "type": "string",
           "default": "http://localhost:11434",
           "description": "Ollama API host URL (e.g., http://localhost:11434)"
+        },
+        "ollama.enableInlineCompletion": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable inline code completion suggestions"
+        },
+        "ollama.maxMessageHistory": {
+          "type": "number",
+          "default": 100,
+          "description": "Maximum number of messages to keep in chat history"
+        },
+        "ollama.maxMessageLength": {
+          "type": "number",
+          "default": 10000,
+          "description": "Maximum length of a single message before truncation"
+        },
+        "ollama.completionCacheSize": {
+          "type": "number",
+          "default": 100,
+          "description": "Number of completions to cache"
+        },
+        "ollama.completion.maxTokens": {
+          "type": "number",
+          "default": 150,
+          "description": "Maximum number of tokens to generate for completions"
+        },
+        "ollama.completion.temperature": {
+          "type": "number",
+          "default": 0.7,
+          "description": "Temperature for completion generation (0.0 - 2.0)"
+        },
+        "ollama.completion.contextWindow": {
+          "type": "number",
+          "default": 2048,
+          "description": "Context window size for completions"
+        },
+        "ollama.memory.enableMonitoring": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable memory usage monitoring"
+        },
+        "ollama.memory.monitoringInterval": {
+          "type": "number",
+          "default": 30000,
+          "description": "Memory monitoring interval in milliseconds"
+        },
+        "ollama.memory.warningThresholdMB": {
+          "type": "number",
+          "default": 200,
+          "description": "Memory usage warning threshold in MB"
+        },
+        "ollama.memory.criticalThresholdMB": {
+          "type": "number",
+          "default": 400,
+          "description": "Memory usage critical threshold in MB"
         }
       }
     },
@@ -89,6 +144,50 @@
       {
         "command": "ollama-copilot.updateOllamaHost",
         "title": "Update Ollama Host"
+      },
+      {
+        "command": "ollama-copilot.showMemoryStats",
+        "title": "Ollama Copilot: Show Memory Stats"
+      },
+      {
+        "command": "ollama-copilot.forceGarbageCollection",
+        "title": "Ollama Copilot: Force Garbage Collection"
+      },
+      {
+        "command": "ollama-copilot.showResourceStatus",
+        "title": "Ollama Copilot: Show Resource Status"
+      },
+      {
+        "command": "ollama-copilot.showFileOperations",
+        "title": "Ollama Copilot: Show Active File Operations"
+      },
+      {
+        "command": "ollama-copilot.showPerformanceReport",
+        "title": "Ollama Copilot: Show File Operation Performance Report"
+      },
+      {
+        "command": "ollama-copilot.exportPerformanceMetrics",
+        "title": "Ollama Copilot: Export Performance Metrics"
+      },
+      {
+        "command": "ollama-copilot.validateConfiguration",
+        "title": "Ollama Copilot: Validate Configuration"
+      },
+      {
+        "command": "ollama-copilot.showValidationStats",
+        "title": "Ollama Copilot: Show Validation Statistics"
+      },
+      {
+        "command": "ollama-copilot.showRateLimitStatus",
+        "title": "Ollama Copilot: Show Rate Limit Status"
+      },
+      {
+        "command": "ollama-copilot.resetRateLimits",
+        "title": "Ollama Copilot: Reset Rate Limits"
+      },
+      {
+        "command": "ollama-copilot.refreshModels",
+        "title": "Ollama Copilot: Refresh Models"
       }
     ]
   },
@@ -100,9 +199,17 @@
     "build": "webpack --mode production",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "docs": "typedoc",
+    "docs:watch": "typedoc --watch",
+    "docs:markdown": "typedoc --plugin typedoc-plugin-markdown --out docs/api-markdown",
+    "docs:serve": "npx http-server ./docs/api -p 8080",
+    "docs:validate": "tsdoc",
+    "docs:clean": "rimraf docs/api docs/api-markdown"
   },
   "devDependencies": {
+    "@microsoft/tsdoc": "^0.14.2",
+    "@microsoft/tsdoc-config": "^0.16.2",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
     "@types/vscode": "^1.97.0",
@@ -111,8 +218,12 @@
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
     "eslint": "^9.19.0",
+    "rimraf": "^5.0.5",
     "terser-webpack-plugin": "^5.3.10",
     "ts-loader": "^9.5.1",
+    "typedoc": "^0.25.7",
+    "typedoc-plugin-markdown": "^3.17.1",
+    "typedoc-plugin-merge-modules": "^5.1.0",
     "typescript": "^5.7.3",
     "webpack": "^5.89.0",
     "webpack-cli": "^5.1.4"

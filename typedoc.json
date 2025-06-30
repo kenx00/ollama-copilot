@@ -1,0 +1,104 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "Ollama Dev Companion API Documentation",
+  "entryPoints": ["./src"],
+  "entryPointStrategy": "expand",
+  "out": "./docs/api",
+  "exclude": [
+    "**/node_modules/**",
+    "**/out/**",
+    "**/dist/**",
+    "**/*.test.ts",
+    "**/test/**"
+  ],
+  "includeVersion": true,
+  "theme": "default",
+  "categorizeByGroup": true,
+  "categoryOrder": [
+    "Services",
+    "Interfaces",
+    "Types",
+    "Utils",
+    "UI Components",
+    "Other"
+  ],
+  "plugin": [
+    "typedoc-plugin-markdown",
+    "typedoc-plugin-merge-modules"
+  ],
+  "readme": "./README.md",
+  "excludePrivate": false,
+  "excludeProtected": false,
+  "excludeInternal": true,
+  "excludeExternals": false,
+  "disableSources": false,
+  "sourceLinkTemplate": "https://github.com/gnana997/ollama-copilot/blob/master/{path}#L{line}",
+  "hideGenerator": false,
+  "searchInComments": true,
+  "commentStyle": "jsdoc",
+  "useTsLinkResolution": true,
+  "preserveLinkText": true,
+  "blockTags": [
+    "@param",
+    "@returns",
+    "@throws",
+    "@example",
+    "@since",
+    "@deprecated",
+    "@see",
+    "@todo",
+    "@internal",
+    "@module",
+    "@category"
+  ],
+  "inlineTags": [
+    "@link",
+    "@linkcode",
+    "@linkplain"
+  ],
+  "modifierTags": [
+    "@public",
+    "@private",
+    "@protected",
+    "@readonly",
+    "@override",
+    "@sealed",
+    "@virtual",
+    "@abstract",
+    "@static"
+  ],
+  "navigation": {
+    "includeCategories": true,
+    "includeGroups": true,
+    "includeFolders": true
+  },
+  "categorizeByGroup": true,
+  "defaultCategory": "Other",
+  "categoryOrder": [
+    "Extension",
+    "Services",
+    "Interfaces", 
+    "Types",
+    "UI",
+    "Utils",
+    "*"
+  ],
+  "visibilityFilters": {
+    "protected": true,
+    "private": true,
+    "inherited": true,
+    "external": false
+  },
+  "sort": ["source-order"],
+  "kindSortOrder": [
+    "Function",
+    "Class",
+    "Interface",
+    "Type alias",
+    "Enum",
+    "Variable",
+    "Property",
+    "Method",
+    "Constructor"
+  ]
+}

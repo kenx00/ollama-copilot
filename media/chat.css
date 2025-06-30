@@ -251,6 +251,7 @@ button:hover {
   transition: transform 0.2s;
   font-size: 12px;
   margin-right: 4px;
+  color: var(--vscode-descriptionForeground);
 }
 
 .loading-indicator.collapsed .loading-indicator-arrow {
@@ -351,6 +352,21 @@ button:hover {
   background-color: var(--button-hover-background);
 }
 
+.model-retry-button {
+  background-color: var(--input-background);
+  color: var(--input-foreground);
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.9em;
+  margin-left: 8px;
+}
+
+.model-retry-button:hover {
+  background-color: var(--button-hover-background);
+}
+
 .cancelled-message {
   text-align: center;
   color: var(--vscode-errorForeground);
@@ -359,4 +375,139 @@ button:hover {
   margin: 8px 0;
   border-top: 1px solid var(--border-color);
   border-bottom: 1px solid var(--border-color);
+}
+
+/* File operation loading states */
+.file-operation-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background-color: var(--vscode-editor-lineHighlightBackground);
+  border-radius: 4px;
+  margin: 10px 0;
+}
+
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--vscode-progressBar-background);
+  border-top-color: var(--vscode-progressBar-foreground);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-message {
+  flex: 1;
+  font-size: 13px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.progress-container {
+  margin: 10px 0;
+}
+
+.progress-bar {
+  height: 4px;
+  background-color: var(--vscode-progressBar-background);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 5px 0;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: var(--vscode-progressBar-foreground);
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  text-align: right;
+}
+
+.file-operation-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background-color: var(--vscode-notifications-background);
+  border: 1px solid var(--vscode-notifications-border);
+  border-radius: 4px;
+  margin: 5px 0;
+}
+
+.file-operation-status.success {
+  border-color: var(--vscode-notificationCenterBorder);
+}
+
+.file-operation-status.error {
+  border-color: var(--vscode-errorForeground);
+  background-color: var(--vscode-inputValidation-errorBackground);
+}
+
+.file-operation-status-icon {
+  font-size: 16px;
+}
+
+.file-operation-status-message {
+  flex: 1;
+  font-size: 13px;
+}
+
+.file-operation-cancel {
+  background: none;
+  border: none;
+  color: var(--vscode-textLink-foreground);
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 12px;
+}
+
+.file-operation-cancel:hover {
+  color: var(--vscode-textLink-activeForeground);
+}
+
+/* Model refresh button styling */
+.model-refresh-button {
+  background: transparent;
+  color: var(--vscode-foreground);
+  border: 1px solid var(--vscode-input-border);
+  padding: 4px 8px;
+  margin-left: 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  transition: all 0.2s;
+}
+
+.model-refresh-button:hover {
+  background: var(--vscode-button-hoverBackground);
+  border-color: var(--vscode-focusBorder);
+}
+
+.model-refresh-button:active {
+  transform: scale(0.95);
+}
+
+/* Model retry button styling */
+.model-retry-button {
+  background: #007acc;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  margin-left: 10px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.model-retry-button:hover {
+  background: #005a9e;
 } 

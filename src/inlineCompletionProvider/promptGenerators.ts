@@ -1,6 +1,6 @@
 // promptGenerators.ts
 import * as vscode from "vscode";
-import { getFileContext, getLanguageContext, findVariablesInScope } from "./helpers";
+import { findVariablesInScope } from "./helpers";
 
 export function generatePrompt(
   fileContext: string,
@@ -36,4 +36,52 @@ RETURN ONLY THE CODE TO INSERT. NO EXPLANATIONS, NO <THINK> BLOCKS, NO COMMENTS,
   }
 
   return prompt;
+}
+
+export function generatePromptFromContext(
+  context: {
+    prefix: string;
+    suffix: string;
+    currentLine: string;
+    language: string;
+  }
+): string {
+  const { prefix, suffix, currentLine, language } = context;
+  
+  // Limit context size to avoid overwhelming the model
+  const maxContextLength = 1000;
+  const prefixTruncated = prefix.length > maxContextLength 
+    ? '...' + prefix.slice(-maxContextLength) 
+    : prefix;
+  const suffixTruncated = suffix.length > maxContextLength 
+    ? suffix.slice(0, maxContextLength) + '...' 
+    : suffix;
+  
+  return `You are a code completion engine. Complete the ${language} code at the cursor position.
+
+Current line: "${currentLine}"
+
+Code before cursor:
+${prefixTruncated}
+
+Code after cursor:
+${suffixTruncated}
+
+RULES:
+1. Return ONLY the raw code to insert at the cursor position
+2. Do NOT use markdown code fences (no \`\`\`)
+3. Do NOT include language identifiers (no 'go', 'javascript', etc.)
+4. Do NOT add explanations or comments
+5. Do NOT use <THINK> blocks
+6. Return code that fits naturally with the surrounding context
+
+Example of WRONG response:
+\`\`\`go
+fmt.Println("Hello")
+\`\`\`
+
+Example of CORRECT response:
+fmt.Println("Hello")
+
+Now complete the code:`;
 }

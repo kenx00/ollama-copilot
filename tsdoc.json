@@ -1,0 +1,86 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/tsdoc/v0/tsdoc.schema.json",
+  "extends": ["@microsoft/tsdoc-config/lib/tsdoc-base.json"],
+  "tagDefinitions": [
+    {
+      "tagName": "@category",
+      "syntaxKind": "inline"
+    },
+    {
+      "tagName": "@since",
+      "syntaxKind": "block",
+      "allowMultiple": false
+    },
+    {
+      "tagName": "@todo",
+      "syntaxKind": "block",
+      "allowMultiple": true
+    },
+    {
+      "tagName": "@security",
+      "syntaxKind": "block",
+      "allowMultiple": false
+    },
+    {
+      "tagName": "@performance",
+      "syntaxKind": "block",
+      "allowMultiple": false
+    }
+  ],
+  "supportedHtmlElements": [
+    "a",
+    "b",
+    "blockquote",
+    "br",
+    "caption",
+    "code",
+    "dd",
+    "div",
+    "dl",
+    "dt",
+    "em",
+    "h1",
+    "h2", 
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "hr",
+    "i",
+    "img",
+    "kbd",
+    "li",
+    "ol",
+    "p",
+    "pre",
+    "span",
+    "strong",
+    "table",
+    "tbody",
+    "td",
+    "th",
+    "thead",
+    "tr",
+    "u",
+    "ul"
+  ],
+  "reportUnsupportedHtmlElements": true,
+  "reportUnsupportedTags": true,
+  "validation": {
+    "syntaxRules": true,
+    "tsdocMessageReporting": {
+      "default": {
+        "logLevel": "warning"
+      },
+      "tsdoc-undefined-tag": {
+        "logLevel": "error"
+      },
+      "tsdoc-param-tag-missing-hyphen": {
+        "logLevel": "error"
+      },
+      "tsdoc-malformed-inline-tag": {
+        "logLevel": "error"
+      }
+    }
+  }
+}
