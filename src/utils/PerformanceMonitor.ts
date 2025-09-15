@@ -65,7 +65,7 @@ export class PerformanceMonitor {
    */
   completeOperation(operationId: string, success: boolean, error?: Error): void {
     const metric = this.metrics.get(operationId);
-    if (!metric) return;
+    if (!metric) {return;}
 
     metric.endTime = Date.now();
     metric.duration = metric.endTime - metric.startTime;
@@ -206,7 +206,7 @@ export class PerformanceMonitor {
       }
     });
 
-    if (!uri) return;
+    if (!uri) {return;}
 
     const csv = this.generateCSV();
     const encoder = new TextEncoder();

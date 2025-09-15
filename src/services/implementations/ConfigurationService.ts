@@ -11,9 +11,12 @@ import {
   ConfigChangeEvent,
   ConfigValidationResult,
 } from "../interfaces/IConfigurationService";
-import { JsonObject, JsonValue } from "../../types/index";
 import { SERVICE_IDENTIFIERS } from "../../di";
 import { Singleton } from "../../di/decorators";
+import {
+  configurationRules,
+  getConfigurationValidator,
+} from "../../validators/ConfigurationValidator";
 
 /**
  * Configuration service implementation
@@ -25,7 +28,6 @@ export class ConfigurationService
 {
   private readonly configurationRoot = "ollama";
   private readonly changeEmitter = new vscode.EventEmitter<ConfigChangeEvent>();
-  private readonly configurationCache = new Map<string, JsonValue>();
 
   constructor() {
     super();
@@ -36,14 +38,13 @@ export class ConfigurationService
     // Listen to VS Code configuration changes
     this.track(
       vscode.workspace.onDidChangeConfiguration((event) => {
-        // Fire if any key under the root is affected
-        const config = vscode.workspace.getConfiguration(
-          this.configurationRoot
+        const relevantKeys = this.getAllKeys().map((key) =>
+          this.normalizeSection(key)
         );
-        const keys = Object.keys(config);
-        const anyKeyAffected = keys.some((key) =>
-          event.affectsConfiguration(`${this.configurationRoot}.${key}`)
+        const anyKeyAffected = relevantKeys.some((key) =>
+          event.affectsConfiguration(key)
         );
+
         if (
           event.affectsConfiguration(this.configurationRoot) ||
           anyKeyAffected
@@ -53,12 +54,45 @@ export class ConfigurationService
               section: string,
               scope?: vscode.ConfigurationScope
             ) => {
-              return event.affectsConfiguration(`${section}`, scope);
+              return event.affectsConfiguration(
+                this.normalizeSection(section),
+                scope
+              );
             },
           });
         }
       })
     );
+  }
+
+  /**
+   * Normalize a configuration section to the full key path
+   */
+  private normalizeSection(section: string): string {
+    if (!section || section === this.configurationRoot) {
+      return this.configurationRoot;
+    }
+
+    if (section.startsWith(`${this.configurationRoot}.`)) {
+      return section;
+    }
+
+    return `${this.configurationRoot}.${section}`;
+  }
+
+  /**
+   * Strip the configuration root from a key
+   */
+  private stripRoot(section: string): string {
+    if (!section) {
+      return section;
+    }
+
+    if (section.startsWith(`${this.configurationRoot}.`)) {
+      return section.substring(this.configurationRoot.length + 1);
+    }
+
+    return section;
   }
 
   /**
@@ -73,20 +107,16 @@ export class ConfigurationService
    * Get configuration section
    */
   getSection(section: string): ConfigSection {
-    const config = vscode.workspace.getConfiguration(
-      `${this.configurationRoot}.${section}`
-    );
+    const config = vscode.workspace.getConfiguration(this.configurationRoot);
     const result: ConfigSection = {};
+    const prefix = section ? `${section}.` : "";
 
-    // Get all properties of the section
-    for (const key of Object.keys(config)) {
-      if (
-        key !== "get" &&
-        key !== "has" &&
-        key !== "inspect" &&
-        key !== "update"
-      ) {
-        result[key] = config[key];
+    for (const key of this.getAllKeys()) {
+      if (!section || key === section || key.startsWith(prefix)) {
+        const value = config.get(key);
+        if (value !== undefined) {
+          result[key] = value;
+        }
       }
     }
 
@@ -137,48 +167,19 @@ export class ConfigurationService
    * Validate configuration
    */
   async validate(): Promise<ConfigValidationResult> {
-    const errors: Array<{ section: string; key: string; message: string }> = [];
-
-    // Validate API host
-    const apiHost = this.get<string>("apiHost");
-    if (apiHost) {
-      try {
-        new URL(apiHost);
-      } catch {
-        errors.push({
-          section: "ollama",
-          key: "apiHost",
-          message: "Invalid URL format",
-        });
-      }
-    }
-
-    // Validate default model
-    const defaultModel = this.get<string>("defaultModel");
-    if (defaultModel && !defaultModel.trim()) {
-      errors.push({
-        section: "ollama",
-        key: "defaultModel",
-        message: "Model name cannot be empty",
-      });
-    }
-
-    // Validate numeric values
-    const completionDelay = this.get<number>("completionDelay");
-    if (
-      completionDelay !== undefined &&
-      (completionDelay < 0 || completionDelay > 5000)
-    ) {
-      errors.push({
-        section: "ollama",
-        key: "completionDelay",
-        message: "Completion delay must be between 0 and 5000ms",
-      });
-    }
+    const validator = getConfigurationValidator();
+    const result = await validator.validateConfiguration();
 
     return {
-      isValid: errors.length === 0,
-      errors,
+      isValid: result.isValid,
+      errors: result.errors.map((error) => {
+        const relativeKey = this.stripRoot(error.field);
+        return {
+          section: this.configurationRoot,
+          key: relativeKey,
+          message: error.message,
+        };
+      }),
     };
   }
 
@@ -205,36 +206,16 @@ export class ConfigurationService
    * Get all configuration keys
    */
   getAllKeys(): string[] {
-    // Get configuration schema to find all keys
-    const schema = this.getSchema();
-    const keys: string[] = [];
+    const keys = new Set<string>();
+    const prefix = `${this.configurationRoot}.`;
 
-    function extractKeys(obj: Record<string, JsonValue>, prefix: string = "") {
-      if (
-        obj.properties &&
-        typeof obj.properties === "object" &&
-        obj.properties !== null
-      ) {
-        const properties = obj.properties as JsonObject;
-        for (const key of Object.keys(properties)) {
-          const fullKey = prefix ? `${prefix}.${key}` : key;
-          keys.push(fullKey);
-
-          // Recursively extract nested keys
-          const propertyValue = properties[key];
-          if (
-            typeof propertyValue === "object" &&
-            propertyValue !== null &&
-            "properties" in propertyValue
-          ) {
-            extractKeys(propertyValue as Record<string, JsonValue>, fullKey);
-          }
-        }
+    for (const fullKey of Object.keys(configurationRules)) {
+      if (fullKey.startsWith(prefix)) {
+        keys.add(fullKey.substring(prefix.length));
       }
     }
 
-    extractKeys(schema as Record<string, JsonValue>);
-    return keys;
+    return Array.from(keys).sort();
   }
 
   /**
@@ -244,11 +225,10 @@ export class ConfigurationService
     const config = vscode.workspace.getConfiguration(this.configurationRoot);
     const result: ConfigSection = {};
 
-    // Export all configuration values
-    const keys = this.getAllKeys();
-    for (const key of keys) {
-      if (config.has(key)) {
-        result[key] = config.get(key);
+    for (const key of this.getAllKeys()) {
+      const value = config.get(key);
+      if (value !== undefined) {
+        result[key] = value;
       }
     }
 
@@ -271,61 +251,71 @@ export class ConfigurationService
    * Get configuration schema
    */
   getSchema(): object {
-    // Return a simplified schema
-    return {
-      properties: {
-        apiHost: {
-          type: "string",
-          default: "http://localhost:11434",
-          description: "Ollama API host URL",
-        },
-        defaultModel: {
-          type: "string",
-          description: "Default model to use for completions and chat",
-        },
-        completionDelay: {
-          type: "number",
-          default: 200,
-          minimum: 0,
-          maximum: 5000,
-          description: "Delay before triggering completions (ms)",
-        },
-        enableStreaming: {
-          type: "boolean",
-          default: true,
-          description: "Enable streaming responses",
-        },
-        maxCompletionTokens: {
-          type: "number",
-          default: 150,
-          minimum: 10,
-          maximum: 2000,
-          description: "Maximum tokens for completions",
-        },
-        temperature: {
-          type: "number",
-          default: 0.7,
-          minimum: 0,
-          maximum: 2,
-          description: "Model temperature",
-        },
-      },
-    };
+    const config = vscode.workspace.getConfiguration(this.configurationRoot);
+    const properties: Record<string, Record<string, unknown>> = {};
+
+    for (const [fullKey, rule] of Object.entries(configurationRules)) {
+      if (!fullKey.startsWith(`${this.configurationRoot}.`)) {
+        continue;
+      }
+
+      const relativeKey = this.stripRoot(fullKey);
+      const inspect = config.inspect(relativeKey);
+      const schemaEntry: Record<string, unknown> = {};
+
+      if (rule.type) {
+        schemaEntry.type = rule.type;
+      }
+
+      const defaultValue = inspect?.defaultValue ?? inspect?.globalValue;
+      if (defaultValue !== undefined) {
+        schemaEntry.default = defaultValue;
+      }
+
+      if (rule.min !== undefined) {
+        schemaEntry.minimum = rule.min;
+      }
+
+      if (rule.max !== undefined) {
+        schemaEntry.maximum = rule.max;
+      }
+
+      if (rule.minLength !== undefined) {
+        schemaEntry.minLength = rule.minLength;
+      }
+
+      if (rule.maxLength !== undefined) {
+        schemaEntry.maxLength = rule.maxLength;
+      }
+
+      if (rule.enum) {
+        schemaEntry.enum = rule.enum;
+      }
+
+      if (rule.pattern) {
+        schemaEntry.pattern = rule.pattern.source;
+      }
+
+      schemaEntry.required = rule.required ?? false;
+
+      properties[relativeKey] = schemaEntry;
+    }
+
+    return { properties };
   }
 
   /**
    * Reload configuration
    */
   async reload(): Promise<void> {
-    // Force VS Code to reload configuration
-    // This is mainly useful for testing
     const event: vscode.ConfigurationChangeEvent = {
-      affectsConfiguration: (section: string) =>
-        section.startsWith(this.configurationRoot),
+      affectsConfiguration: (section: string, _scope?: vscode.ConfigurationScope) =>
+        this.normalizeSection(section).startsWith(this.configurationRoot),
     };
 
     this.changeEmitter.fire({
-      affectsConfiguration: event.affectsConfiguration,
+      affectsConfiguration: (section: string, scope?: vscode.ConfigurationScope) =>
+        event.affectsConfiguration(this.normalizeSection(section), scope),
     });
   }
 
@@ -333,10 +323,6 @@ export class ConfigurationService
    * Cleanup on dispose
    */
   protected onDispose(): void {
-    // Dispose event emitter
     this.changeEmitter.dispose();
-
-    // Clear cache
-    this.configurationCache.clear();
   }
 }

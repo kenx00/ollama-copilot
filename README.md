@@ -4,6 +4,10 @@ Ollama Copilot integrates local LLMs from [Ollama](https://ollama.ai/) directly 
 
 ![Inline Suggestions and Model Selection](media/demo/inlinesuggestions.gif)
 
+## What's New in v0.2.2
+
+- Unified configuration handling so every `ollama.*` setting updates live in services, exports, and the UI.
+
 ## What's New in v0.2.1
 
 - Ollama API host now updates live when changed via command or VS Code settings UI—no reload needed.

@@ -109,7 +109,7 @@ export function isPromise<T = unknown>(value: unknown): value is Promise<T> {
  * @returns True if value is a valid JSON value
  */
 export function isJsonValue(value: unknown): value is JsonValue {
-  if (value === null) return true;
+  if (value === null) {return true;}
   
   const type = typeof value;
   if (type === 'string' || type === 'number' || type === 'boolean') {

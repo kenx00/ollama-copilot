@@ -12,6 +12,13 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - **Smart Repository Indexing**: Automatic codebase analysis and context creation for more accurate inline suggestions
 - **Enhanced Context Awareness**: Improved chat experience with better understanding of your project structure
 
+## [0.2.2] - 2025-07-02
+
+### Changed
+
+- Centralized configuration validation and key discovery so every `ollama.*` setting is available across the UI, exports, and service consumers.
+- Normalized configuration change events to include the `ollama` prefix, ensuring live updates from settings and commands reach dependent services.
+
 ## [0.2.1] - 2024-07-26
 
 ### Changed

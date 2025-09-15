@@ -16,7 +16,7 @@ export class ChatEventManager extends Disposable implements IEventManager {
    */
   public emit(event: ChatEventType, data?: any): void {
     const handlers = this.eventHandlers.get(event);
-    if (!handlers) return;
+    if (!handlers) {return;}
     
     // Call all handlers for this event
     handlers.forEach(handler => {

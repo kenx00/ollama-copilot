@@ -12,21 +12,28 @@ import { ValidationResult, ValidationError, ConfigValidationOptions } from '../s
 export interface ExtensionConfig {
   defaultModel?: string;
   apiHost?: string;
+  enableInlineCompletion?: boolean;
   maxMessageHistory?: number;
   maxMessageLength?: number;
   completionCacheSize?: number;
+  completion?: {
+    maxTokens?: number;
+    temperature?: number;
+    contextWindow?: number;
+  };
   memory?: {
     enableMonitoring?: boolean;
     monitoringInterval?: number;
     warningThresholdMB?: number;
     criticalThresholdMB?: number;
   };
+
 }
 
 /**
  * Configuration validation rules
  */
-const configurationRules: Record<string, ConfigValidationOptions> = {
+export const configurationRules: Record<string, ConfigValidationOptions> = {
   'ollama.defaultModel': {
     type: 'string',
     required: false,
@@ -38,6 +45,28 @@ const configurationRules: Record<string, ConfigValidationOptions> = {
     type: 'string',
     required: false,
     pattern: /^https?:\/\/.+/
+  },
+  'ollama.enableInlineCompletion': {
+    type: 'boolean',
+    required: false
+  },
+  'ollama.completion.maxTokens': {
+    type: 'number',
+    required: false,
+    min: 1,
+    max: 16384
+  },
+  'ollama.completion.temperature': {
+    type: 'number',
+    required: false,
+    min: 0,
+    max: 2
+  },
+  'ollama.completion.contextWindow': {
+    type: 'number',
+    required: false,
+    min: 1,
+    max: 131072
   },
   'ollama.maxMessageHistory': {
     type: 'number',
@@ -87,24 +116,24 @@ const configurationRules: Record<string, ConfigValidationOptions> = {
 export class ConfigurationValidator {
   // Validation service removed - implement validation directly
   
-  private validateUrl(value: string): ValidationResult<string> {
+  private validateUrl(value: string, field: string = 'url'): ValidationResult<string> {
     const errors: ValidationError[] = [];
     try {
       const url = new URL(value);
       if (!['http:', 'https:'].includes(url.protocol)) {
-        errors.push({ field: 'url', message: 'Invalid protocol', code: 'INVALID_PROTOCOL' });
+        errors.push({ field, message: 'Invalid protocol', code: 'INVALID_PROTOCOL' });
       }
     } catch {
-      errors.push({ field: 'url', message: 'Invalid URL format', code: 'INVALID_URL' });
+      errors.push({ field, message: 'Invalid URL format', code: 'INVALID_URL' });
     }
     return { isValid: errors.length === 0, value, errors };
   }
   
-  private validateModelName(value: string): ValidationResult<string> {
+  private validateModelName(value: string, field: string = 'modelName'): ValidationResult<string> {
     const errors: ValidationError[] = [];
     const pattern = /^[a-zA-Z0-9][a-zA-Z0-9-_\/:.]*$/;
     if (!pattern.test(value)) {
-      errors.push({ field: 'modelName', message: 'Invalid model name format', code: 'INVALID_FORMAT' });
+      errors.push({ field, message: 'Invalid model name format', code: 'INVALID_FORMAT' });
     }
     return { isValid: errors.length === 0, value, errors };
   }
@@ -239,7 +268,7 @@ export class ConfigurationValidator {
     
     // Special handling for certain values
     if (fullKey === 'ollama.apiHost' && value) {
-      const urlResult = this.validateUrl(value);
+      const urlResult = this.validateUrl(value, fullKey);
       
       if (!urlResult.isValid) {
         return urlResult;
@@ -247,7 +276,7 @@ export class ConfigurationValidator {
     }
     
     if (fullKey === 'ollama.defaultModel' && value) {
-      const modelResult = this.validateModelName(value);
+      const modelResult = this.validateModelName(value, fullKey);
       if (!modelResult.isValid) {
         return modelResult;
       }
@@ -327,9 +356,13 @@ export class ConfigurationValidator {
     const config = vscode.workspace.getConfiguration('ollama');
     const defaults: Record<string, any> = {
       apiHost: 'http://localhost:11434',
+      enableInlineCompletion: true,
       maxMessageHistory: 100,
       maxMessageLength: 10000,
       completionCacheSize: 100,
+      'completion.maxTokens': 150,
+      'completion.temperature': 0.7,
+      'completion.contextWindow': 2048,
       'memory.enableMonitoring': false,
       'memory.monitoringInterval': 30000,
       'memory.warningThresholdMB': 200,

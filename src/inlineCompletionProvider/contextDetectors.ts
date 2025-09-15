@@ -19,8 +19,8 @@ export function isInsideObjectLiteral(
     const matches = linePrefix.match(/[{}\[\]()]/g) || [];
     let bracketCount = 0;
     for (const match of matches) {
-      if (match === "{" || match === "[" || match === "(") bracketCount++;
-      if (match === "}" || match === "]" || match === ")") bracketCount--;
+      if (match === "{" || match === "[" || match === "(") {bracketCount++;}
+      if (match === "}" || match === "]" || match === ")") {bracketCount--;}
     }
     return bracketCount > 0;
   }
@@ -33,8 +33,8 @@ export function isInsideObjectLiteral(
     const matches = line.match(/[{}\[\]()]/g) || [];
     for (let i = matches.length - 1; i >= 0; i--) {
       const match = matches[i];
-      if (match === "{" || match === "[" || match === "(") bracketCount++;
-      if (match === "}" || match === "]" || match === ")") bracketCount--;
+      if (match === "{" || match === "[" || match === "(") {bracketCount++;}
+      if (match === "}" || match === "]" || match === ")") {bracketCount--;}
     }
     if (line.includes("=") && bracketCount > 0) {
       return true;

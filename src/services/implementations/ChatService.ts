@@ -255,7 +255,7 @@ export class ChatService extends Disposable implements IChatService {
    */
   clearSession(sessionId: string): void {
     const session = this.getSession(sessionId);
-    if (!session) return;
+    if (!session) {return;}
     
     // Keep system messages
     session.messages = session.messages.filter(m => m.role === 'system');
@@ -311,7 +311,7 @@ export class ChatService extends Disposable implements IChatService {
    */
   removeContextFiles(sessionId: string, files: string[]): void {
     const session = this.getSession(sessionId);
-    if (!session) return;
+    if (!session) {return;}
     
     if (session.contextFiles) {
       session.contextFiles = session.contextFiles.filter(f => !files.includes(f));
@@ -408,7 +408,7 @@ export class ChatService extends Disposable implements IChatService {
    */
   private async buildWorkspaceContext(): Promise<string | null> {
     const workspaceRoot = this.fileService.getWorkspaceRoot();
-    if (!workspaceRoot) return null;
+    if (!workspaceRoot) {return null;}
     
     // TODO: Implement workspace analysis
     return `You are assisting with a project located at: ${workspaceRoot}`;

@@ -47,9 +47,9 @@ export function getExistingProperties(
     // Count brackets from right to left to find our object's opening brace
     for (let i = line.length - 1; i >= 0; i--) {
       const char = line[i];
-      if (char === '}') bracketStack.push('}');
+      if (char === '}') {bracketStack.push('}');}
       else if (char === '{') {
-        if (bracketStack.length > 0) bracketStack.pop();
+        if (bracketStack.length > 0) {bracketStack.pop();}
         else {
           // This is our opening brace
           bracketCount = 1;
@@ -58,7 +58,7 @@ export function getExistingProperties(
       }
     }
     
-    if (bracketCount > 0 || line.includes('{')) break;
+    if (bracketCount > 0 || line.includes('{')) {break;}
     openBraceLine--;
   }
   
@@ -99,15 +99,15 @@ export function findVariablesInScope(
     const varMatches = line.matchAll(/var\s+(\w+)\s*=/g);
     
     for (const match of constMatches) {
-      if (match[1]) variables.add(match[1]);
+      if (match[1]) {variables.add(match[1]);}
     }
     
     for (const match of letMatches) {
-      if (match[1]) variables.add(match[1]);
+      if (match[1]) {variables.add(match[1]);}
     }
     
     for (const match of varMatches) {
-      if (match[1]) variables.add(match[1]);
+      if (match[1]) {variables.add(match[1]);}
     }
     
     // Look for function parameters
@@ -117,7 +117,7 @@ export function findVariablesInScope(
         const params = match[1].split(',');
         for (const param of params) {
           const paramName = param.trim().split(':')[0].split('=')[0].trim();
-          if (paramName) variables.add(paramName);
+          if (paramName) {variables.add(paramName);}
         }
       }
     }
@@ -319,16 +319,16 @@ export function extractCommentContent(line: string): string {
  * Identifies the type of control structure
  */
 export function identifyControlStructureType(line: string): string {
-  if (line.includes('if')) return 'if';
-  if (line.includes('else if')) return 'else if';
-  if (line.includes('else')) return 'else';
-  if (line.includes('for')) return 'for loop';
-  if (line.includes('while')) return 'while loop';
-  if (line.includes('switch')) return 'switch';
-  if (line.includes('case')) return 'case';
-  if (line.includes('try')) return 'try';
-  if (line.includes('catch')) return 'catch';
-  if (line.includes('finally')) return 'finally';
+  if (line.includes('if')) {return 'if';}
+  if (line.includes('else if')) {return 'else if';}
+  if (line.includes('else')) {return 'else';}
+  if (line.includes('for')) {return 'for loop';}
+  if (line.includes('while')) {return 'while loop';}
+  if (line.includes('switch')) {return 'switch';}
+  if (line.includes('case')) {return 'case';}
+  if (line.includes('try')) {return 'try';}
+  if (line.includes('catch')) {return 'catch';}
+  if (line.includes('finally')) {return 'finally';}
   return 'control structure';
 }
 

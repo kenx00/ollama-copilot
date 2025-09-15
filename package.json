@@ -2,7 +2,7 @@
   "name": "ollama-dev-companion",
   "displayName": "Ollama Dev Companion",
   "description": "AI Chat and Inline Code Suggestions powered by Ollama Local LLMs",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "publisher": "Gnana997",
   "license": "MIT",
   "repository": {
@@ -51,7 +51,8 @@
         {
           "id": "ollamaChatView",
           "name": "Chat",
-          "type": "webview"
+          "type": "webview",
+          "icon": "$(comment)"
         }
       ]
     },
@@ -205,7 +206,8 @@
     "docs:markdown": "typedoc --plugin typedoc-plugin-markdown --out docs/api-markdown",
     "docs:serve": "npx http-server ./docs/api -p 8080",
     "docs:validate": "tsdoc",
-    "docs:clean": "rimraf docs/api docs/api-markdown"
+    "docs:clean": "rimraf docs/api docs/api-markdown",
+    "lint:fix": "eslint src --fix"
   },
   "devDependencies": {
     "@microsoft/tsdoc": "^0.14.2",

@@ -35,7 +35,7 @@ export function cleanAIResponse(
   // Process lines while preserving relative indentation
   let cleaned = lines
     .map(line => {
-      if (!line.trim() || line.startsWith('```')) return ''; // Remove empty lines and fence markers
+      if (!line.trim() || line.startsWith('```')) {return '';} // Remove empty lines and fence markers
       const match = line.match(/^\s*/);
       const lineIndent = match ? match[0] : '';
       const relativeIndent = ' '.repeat(Math.max(0, lineIndent.length - minIndent));
@@ -68,7 +68,7 @@ export function getUniqueCompletion(completion: string, linePrefix: string): str
 }
 
 export function cleanCompletion(response: string): string {
-  if (!response.trim()) return "";
+  if (!response.trim()) {return "";}
   
   // Remove all markdown code fences (including nested ones)
   let cleaned = response;
@@ -96,7 +96,7 @@ export function cleanCompletion(response: string): string {
     const trimmedLine = line.trim();
     
     // Remove empty lines at the start
-    if (index === 0 && !trimmedLine) return false;
+    if (index === 0 && !trimmedLine) {return false;}
     
     // Remove lines that are just language identifiers
     if (/^(go|javascript|typescript|python|java|c\+\+|c|rust|swift|kotlin|ruby|php)$/i.test(trimmedLine)) {
@@ -104,9 +104,9 @@ export function cleanCompletion(response: string): string {
     }
     
     // Remove lines that look like markdown headers or explanations
-    if (trimmedLine.startsWith('#') && !trimmedLine.startsWith('#!')) return false;
-    if (trimmedLine.startsWith('---') || trimmedLine.startsWith('===')) return false;
-    if (trimmedLine.startsWith('```')) return false;
+    if (trimmedLine.startsWith('#') && !trimmedLine.startsWith('#!')) {return false;}
+    if (trimmedLine.startsWith('---') || trimmedLine.startsWith('===')) {return false;}
+    if (trimmedLine.startsWith('```')) {return false;}
     
     // Remove explanatory comments (but keep TODO comments and code comments)
     if (trimmedLine.startsWith('//') && 

@@ -114,7 +114,7 @@ export function generateHeader(isSidebar: boolean): string {
  * Generate context controls for sidebar
  */
 export function generateContextControls(isSidebar: boolean): string {
-  if (!isSidebar) return '';
+  if (!isSidebar) {return '';}
   
   return `
     <div class="context-controls">

@@ -152,13 +152,13 @@ export function sanitizeFilePath(filePath: string): string {
   const segments = sanitized.split('/');
   const cleaned = segments.filter(segment => {
     // Remove empty segments
-    if (!segment) return false;
+    if (!segment) {return false;}
     
     // Remove segments that try to escape
-    if (segment === '..' || segment === '.') return false;
+    if (segment === '..' || segment === '.') {return false;}
     
     // Remove segments with special characters at the start
-    if (/^[~$]/.test(segment)) return false;
+    if (/^[~$]/.test(segment)) {return false;}
     
     return true;
   });
@@ -218,7 +218,7 @@ export function escapeForDisplay(text: string): string {
  * Removes ANSI escape codes from text
  */
 export function stripAnsiCodes(text: string): string {
-  // eslint-disable-next-line no-control-regex
+   
   return text.replace(/\x1B\[[0-9;]*[JKmsu]/g, '');
 }
 
