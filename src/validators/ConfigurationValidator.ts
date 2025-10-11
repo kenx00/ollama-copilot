@@ -3,7 +3,11 @@
  */
 
 import * as vscode from 'vscode';
-import { ValidationResult, ValidationError, ConfigValidationOptions } from '../schemas/ValidationSchemas';
+
+import {
+    ConfigValidationOptions, ValidationError, ValidationResult
+} from '../schemas/ValidationSchemas';
+
 // Removed unused import
 
 /**
@@ -27,7 +31,6 @@ export interface ExtensionConfig {
     warningThresholdMB?: number;
     criticalThresholdMB?: number;
   };
-
 }
 
 /**
@@ -115,7 +118,7 @@ export const configurationRules: Record<string, ConfigValidationOptions> = {
  */
 export class ConfigurationValidator {
   // Validation service removed - implement validation directly
-  
+
   private validateUrl(value: string, field: string = 'url'): ValidationResult<string> {
     const errors: ValidationError[] = [];
     try {
@@ -128,7 +131,7 @@ export class ConfigurationValidator {
     }
     return { isValid: errors.length === 0, value, errors };
   }
-  
+
   private validateModelName(value: string, field: string = 'modelName'): ValidationResult<string> {
     const errors: ValidationError[] = [];
     const pattern = /^[a-zA-Z0-9][a-zA-Z0-9-_\/:.]*$/;
@@ -137,24 +140,24 @@ export class ConfigurationValidator {
     }
     return { isValid: errors.length === 0, value, errors };
   }
-  
+
   /**
    * Validates a configuration value based on rules
    */
   private validateConfigValue(value: any, rules: ConfigValidationOptions, key: string): ValidationResult<any> {
     const errors: ValidationError[] = [];
-    
+
     // Check required
     if (rules.required && (value === null || value === undefined)) {
       errors.push({ field: key, message: `${key} is required`, code: 'REQUIRED' });
       return { isValid: false, errors };
     }
-    
+
     // Skip validation if value is not provided and not required
     if (value === null || value === undefined) {
       return { isValid: true, value, errors: [] };
     }
-    
+
     // Type validation
     if (rules.type) {
       const actualType = Array.isArray(value) ? 'array' : typeof value;
@@ -163,19 +166,19 @@ export class ConfigurationValidator {
         return { isValid: false, errors };
       }
     }
-    
+
     // Enum validation
     if (rules.enum && !rules.enum.includes(value)) {
       errors.push({ field: key, message: `${key} must be one of: ${rules.enum.join(', ')}`, code: 'INVALID_ENUM' });
       return { isValid: false, errors };
     }
-    
+
     // Pattern validation
     if (rules.pattern && typeof value === 'string' && !new RegExp(rules.pattern).test(value)) {
       errors.push({ field: key, message: `${key} does not match required pattern`, code: 'INVALID_PATTERN' });
       return { isValid: false, errors };
     }
-    
+
     // Min/max validation
     if (typeof value === 'number') {
       if (rules.min !== undefined && value < rules.min) {
@@ -185,7 +188,7 @@ export class ConfigurationValidator {
         errors.push({ field: key, message: `${key} must be at most ${rules.max}`, code: 'TOO_LARGE' });
       }
     }
-    
+
     // String length validation
     if (typeof value === 'string') {
       if (rules.minLength !== undefined && value.length < rules.minLength) {
@@ -195,14 +198,14 @@ export class ConfigurationValidator {
         errors.push({ field: key, message: `${key} must be at most ${rules.maxLength} characters`, code: 'TOO_LONG' });
       }
     }
-    
+
     return {
       isValid: errors.length === 0,
       value,
       errors
     };
   }
-  
+
   /**
    * Validates all configuration values
    */
@@ -210,15 +213,15 @@ export class ConfigurationValidator {
     const config = vscode.workspace.getConfiguration('ollama');
     const errors: ValidationError[] = [];
     const validatedConfig: ExtensionConfig = {};
-    
+
     // Validate each configuration value
     for (const [key, rules] of Object.entries(configurationRules)) {
       const configKey = key.replace('ollama.', '');
       const value = this.getConfigValue(config, configKey);
-      
+
       // Validate based on rules
       const validationResult = this.validateConfigValue(value, rules, key);
-      
+
       if (!validationResult.isValid) {
         errors.push(...validationResult.errors);
       } else if (validationResult.value !== undefined) {
@@ -226,7 +229,7 @@ export class ConfigurationValidator {
         this.setValidatedValue(validatedConfig, configKey, validationResult.value);
       }
     }
-    
+
     // Additional cross-field validation
     if (validatedConfig.memory) {
       const memory = validatedConfig.memory;
@@ -240,104 +243,107 @@ export class ConfigurationValidator {
         }
       }
     }
-    
+
     return {
       isValid: errors.length === 0,
       value: errors.length === 0 ? validatedConfig : undefined,
       errors
     };
   }
-  
+
   /**
    * Validates a specific configuration value
    */
   async validateSingleConfigValue(key: string, value: any): Promise<ValidationResult<any>> {
     const fullKey = key.startsWith('ollama.') ? key : `ollama.${key}`;
     const rules = configurationRules[fullKey];
-    
+
     if (!rules) {
       return {
         isValid: false,
-        errors: [{
-          field: fullKey,
-          message: 'Unknown configuration key',
-          code: 'UNKNOWN_KEY'
-        }]
+        errors: [
+          {
+            field: fullKey,
+            message: 'Unknown configuration key',
+            code: 'UNKNOWN_KEY'
+          }
+        ]
       };
     }
-    
+
     // Special handling for certain values
     if (fullKey === 'ollama.apiHost' && value) {
       const urlResult = this.validateUrl(value, fullKey);
-      
+
       if (!urlResult.isValid) {
         return urlResult;
       }
     }
-    
+
     if (fullKey === 'ollama.defaultModel' && value) {
       const modelResult = this.validateModelName(value, fullKey);
       if (!modelResult.isValid) {
         return modelResult;
       }
     }
-    
+
     return this.validateConfigValue(value, rules, fullKey);
   }
-  
+
   /**
    * Validates configuration on change
    */
   onConfigurationChange(event: vscode.ConfigurationChangeEvent): void {
     const ollamaKeys = Object.keys(configurationRules);
-    const changedKeys = ollamaKeys.filter(key => event.affectsConfiguration(key));
-    
+    const changedKeys = ollamaKeys.filter((key) => event.affectsConfiguration(key));
+
     if (changedKeys.length === 0) {
       return;
     }
-    
+
     // Validate changed configurations
     const config = vscode.workspace.getConfiguration('ollama');
-    
+
     for (const key of changedKeys) {
       const configKey = key.replace('ollama.', '');
       const value = this.getConfigValue(config, configKey);
-      
-      this.validateSingleConfigValue(key, value).then(result => {
+
+      this.validateSingleConfigValue(key, value).then((result) => {
         if (!result.isValid) {
-          const errorMessages = result.errors.map(e => e.message).join(', ');
-          vscode.window.showWarningMessage(
-            `Invalid configuration for ${key}: ${errorMessages}`
-          );
+          const errorMessages = result.errors.map((e) => e.message).join(', ');
+          vscode.window.showWarningMessage(`Invalid configuration for ${key}: ${errorMessages}`);
         }
       });
     }
   }
-  
+
   /**
    * Gets a configuration value by dot notation key
    */
   private getConfigValue(config: vscode.WorkspaceConfiguration, key: string): any {
     const parts = key.split('.');
     let value: any = config;
-    
+
     for (const part of parts) {
-      value = value.get(part);
-      if (value === undefined) {
-        break;
+      if (value && typeof value.get === 'function') {
+        value = value.get(part);
+      } else if (value && typeof value === 'object' && part in value) {
+        value = value[part];
+      } else {
+        return undefined;
       }
     }
-    
+
     return value;
   }
-  
+
   /**
    * Sets a value in the validated config object
    */
   private setValidatedValue(config: ExtensionConfig, key: string, value: any): void {
     const parts = key.split('.');
     let current: any = config;
-    
+
     for (let i = 0; i < parts.length - 1; i++) {
       const part = parts[i];
       if (!current[part]) {
@@ -345,10 +351,10 @@ export class ConfigurationValidator {
       }
       current = current[part];
     }
-    
+
     current[parts[parts.length - 1]] = value;
   }
-  
+
   /**
    * Applies default values to configuration
    */
@@ -368,7 +374,7 @@ export class ConfigurationValidator {
       'memory.warningThresholdMB': 200,
       'memory.criticalThresholdMB': 400
     };
-    
+
     for (const [key, defaultValue] of Object.entries(defaults)) {
       const currentValue = this.getConfigValue(config, key);
       if (currentValue === undefined) {
@@ -376,19 +382,19 @@ export class ConfigurationValidator {
       }
     }
   }
-  
+
   /**
    * Shows configuration validation status
    */
   async showValidationStatus(): Promise<void> {
     const result = await this.validateConfiguration();
-    
+
     if (result.isValid) {
       vscode.window.showInformationMessage('All configuration values are valid');
     } else {
       const quickPick = vscode.window.createQuickPick();
       quickPick.title = 'Configuration Validation Errors';
-      quickPick.items = result.errors.map(error => ({
+      quickPick.items = result.errors.map((error) => ({
         label: error.field,
         description: error.message,
         detail: `Error code: ${error.code}`

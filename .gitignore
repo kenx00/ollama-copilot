@@ -4,3 +4,4 @@ node_modules
 .vscode-test/
 *.vsix
 fixes_docs
+package-lock.json
