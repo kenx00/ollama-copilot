@@ -5,7 +5,8 @@
  */
 
 import * as vscode from 'vscode';
-import { IErrorHandlerService, ErrorCategory, ErrorSeverity } from '../services/interfaces/IErrorHandlerService';
+
+import { ErrorCategory, ErrorSeverity, IErrorHandlerService } from '../services/interfaces/IErrorHandlerService';
 
 /**
  * Global error boundary configuration
@@ -15,22 +16,22 @@ export interface ErrorBoundaryConfig {
    * Whether to show notifications for unhandled errors
    */
   showNotifications?: boolean;
-  
+
   /**
    * Whether to log errors to console
    */
   logToConsole?: boolean;
-  
+
   /**
    * Whether to offer recovery options
    */
   offerRecovery?: boolean;
-  
+
   /**
    * Maximum number of errors before disabling notifications
    */
   maxErrors?: number;
-  
+
   /**
    * Time window for error counting (ms)
    */
@@ -45,7 +46,7 @@ export class GlobalErrorBoundary {
   private errorCount = 0;
   private errorTimestamps: number[] = [];
   private isActive = false;
-  
+
   private readonly defaultConfig: Required<ErrorBoundaryConfig> = {
     showNotifications: true,
     logToConsole: true,
@@ -53,36 +54,30 @@ export class GlobalErrorBoundary {
     maxErrors: 5,
     errorWindow: 60000 // 1 minute
   };
-  
+
   private config: Required<ErrorBoundaryConfig>;
-  
-  private constructor(
-    private readonly errorHandler: IErrorHandlerService,
-    config?: ErrorBoundaryConfig
-  ) {
+
+  private constructor(private readonly errorHandler: IErrorHandlerService, config?: ErrorBoundaryConfig) {
     this.config = { ...this.defaultConfig, ...config };
   }
-  
+
   /**
    * Initialize the global error boundary
    */
-  static initialize(
-    errorHandler: IErrorHandlerService,
-    config?: ErrorBoundaryConfig
-  ): GlobalErrorBoundary {
+  static initialize(errorHandler: IErrorHandlerService, config?: ErrorBoundaryConfig): GlobalErrorBoundary {
     if (!GlobalErrorBoundary.instance) {
       GlobalErrorBoundary.instance = new GlobalErrorBoundary(errorHandler, config);
     }
     return GlobalErrorBoundary.instance;
   }
-  
+
   /**
    * Get the singleton instance
    */
   static getInstance(): GlobalErrorBoundary | undefined {
     return GlobalErrorBoundary.instance;
   }
-  
+
   /**
    * Activate the error boundary
    */
@@ -90,15 +85,15 @@ export class GlobalErrorBoundary {
     if (this.isActive) {
       return;
     }
-    
+
     this.isActive = true;
-    
+
     // Handle uncaught exceptions
     process.on('uncaughtException', this.handleUncaughtException);
-    
+
     // Handle unhandled promise rejections
     process.on('unhandledRejection', this.handleUnhandledRejection);
-    
+
     // VS Code specific error handling
     if (vscode.window.onDidChangeWindowState) {
       vscode.window.onDidChangeWindowState((state) => {
@@ -109,7 +104,7 @@ export class GlobalErrorBoundary {
       });
     }
   }
-  
+
   /**
    * Deactivate the error boundary
    */
@@ -117,24 +112,21 @@ export class GlobalErrorBoundary {
     if (!this.isActive) {
       return;
     }
-    
+
     this.isActive = false;
-    
+
     process.off('uncaughtException', this.handleUncaughtException);
     process.off('unhandledRejection', this.handleUnhandledRejection);
   }
-  
+
   /**
    * Wrap a function with error boundary protection
    */
-  wrap<T extends (...args: any[]) => any>(
-    fn: T,
-    context: string
-  ): T {
+  wrap<T extends (...args: any[]) => any>(fn: T, context: string): T {
     return ((...args: Parameters<T>) => {
       try {
         const result = fn(...args);
-        
+
         // Handle async functions
         if (result instanceof Promise) {
           return result.catch((error) => {
@@ -142,7 +134,7 @@ export class GlobalErrorBoundary {
             throw error;
           });
         }
-        
+
         return result;
       } catch (error) {
         this.handleError(error as Error, context);
@@ -150,14 +142,11 @@ export class GlobalErrorBoundary {
       }
     }) as T;
   }
-  
+
   /**
    * Wrap an async function with error boundary protection
    */
-  wrapAsync<T extends (...args: any[]) => Promise<any>>(
-    fn: T,
-    context: string
-  ): T {
+  wrapAsync<T extends (...args: any[]) => Promise<any>>(fn: T, context: string): T {
     return (async (...args: Parameters<T>) => {
       try {
         return await fn(...args);
@@ -167,59 +156,68 @@ export class GlobalErrorBoundary {
       }
     }) as T;
   }
-  
+
   /**
    * Execute a function with error recovery
    */
-  async executeWithRecovery<T>(
-    fn: () => T | Promise<T>,
-    context: string,
-    fallback?: T
-  ): Promise<T | undefined> {
+  async executeWithRecovery<T>(fn: () => T | Promise<T>, context: string, fallback?: T): Promise<T | undefined> {
     try {
       return await fn();
     } catch (error) {
       const handled = await this.handleError(error as Error, context);
-      
+
       if (handled && fallback !== undefined) {
         return fallback;
       }
-      
+
       return undefined;
     }
   }
-  
+
   /**
    * Handle uncaught exception
    */
   private handleUncaughtException = (error: Error): void => {
     console.error('Uncaught Exception:', error);
-    
+
     this.handleError(error, 'Uncaught Exception', {
       severity: ErrorSeverity.Critical,
       category: ErrorCategory.Unknown
     });
-    
+
     // Prevent process exit
     // In VS Code extensions, we want to keep running
   };
-  
+
+  /**
+   * Bypass the known VS Code shutdown error
+   */
+  private isIgnorableVsCodeShutdownError(err: Error): boolean {
+    // The error message is stable across VS Code versions, but we also
+    // check the stack to be extra safe.
+    const msgPattern = /Cannot read properties of undefined.*jmxurl/;
+    const stackPattern = /extensionHostProcess\.js/;
+    return msgPattern.test(err.message) && stackPattern.test(err.stack ?? '');
+  }
+
   /**
    * Handle unhandled promise rejection
    */
   private handleUnhandledRejection = (reason: any, _promise: Promise<any>): void => {
-    const error = reason instanceof Error 
-      ? reason 
-      : new Error(`Unhandled Promise Rejection: ${String(reason)}`);
-    
+    const error = reason instanceof Error ? reason : new Error(`Unhandled Promise Rejection: ${String(reason)}`);
+
+    if (this.isIgnorableVsCodeShutdownError(error)) {
+      return;
+    }
+
     console.error('Unhandled Rejection:', error);
-    
+
     this.handleError(error, 'Unhandled Promise Rejection', {
       severity: ErrorSeverity.Error,
       category: ErrorCategory.Unknown
     });
   };
-  
+
   /**
    * Handle an error
    */
@@ -233,21 +231,16 @@ export class GlobalErrorBoundary {
   ): Promise<boolean> {
     // Update error count
     this.updateErrorCount();
-    
+
     // Check if we should suppress notifications
     const shouldShowNotification = this.shouldShowNotification();
-    
+
     try {
       // Create error info
-      const errorInfo = this.errorHandler.createError(
-        'GLOBAL_ERROR',
-        error.message || 'An unexpected error occurred',
-        options?.category || ErrorCategory.Unknown,
-        options?.severity || ErrorSeverity.Error
-      );
-      
+      const errorInfo = this.errorHandler.createError('GLOBAL_ERROR', error.message || 'An unexpected error occurred', options?.category || ErrorCategory.Unknown, options?.severity || ErrorSeverity.Error);
+
       // Severity is already set in createError, no need to modify
-      
+
       // Add boundary context
       errorInfo.context = {
         ...errorInfo.context,
@@ -255,54 +248,46 @@ export class GlobalErrorBoundary {
         errorCount: this.errorCount,
         context
       };
-      
+
       // Handle the error
-      const userAction = await this.errorHandler.handleError(
-        errorInfo,
-        {
-          modal: false,
-          statusBarOnly: !shouldShowNotification || !this.config.showNotifications,
-          actions: this.getRecoveryActions(errorInfo)
-        }
-      );
-      
+      const userAction = await this.errorHandler.handleError(errorInfo, {
+        modal: false,
+        statusBarOnly: !shouldShowNotification || !this.config.showNotifications,
+        actions: this.getRecoveryActions(errorInfo)
+      });
+
       return !!userAction;
     } catch (handlerError) {
       // Error handler itself failed
       console.error('Error handler failed:', handlerError);
       console.error('Original error:', error);
-      
+
       if (shouldShowNotification) {
-        vscode.window.showErrorMessage(
-          `Critical Error: ${error.message}`,
-          'Show Logs'
-        ).then(action => {
+        vscode.window.showErrorMessage(`Critical Error: ${error.message}`, 'Show Logs').then((action) => {
           if (action === 'Show Logs') {
             vscode.commands.executeCommand('workbench.action.output.toggleOutput');
           }
         });
       }
-      
+
       return false;
     }
   }
-  
+
   /**
    * Update error count
    */
   private updateErrorCount(): void {
     const now = Date.now();
-    
+
     // Remove old timestamps
-    this.errorTimestamps = this.errorTimestamps.filter(
-      timestamp => now - timestamp < this.config.errorWindow
-    );
-    
+    this.errorTimestamps = this.errorTimestamps.filter((timestamp) => now - timestamp < this.config.errorWindow);
+
     // Add new timestamp
     this.errorTimestamps.push(now);
     this.errorCount = this.errorTimestamps.length;
   }
-  
+
   /**
    * Reset error count
    */
@@ -310,20 +295,20 @@ export class GlobalErrorBoundary {
     this.errorCount = 0;
     this.errorTimestamps = [];
   }
-  
+
   /**
    * Check if we should show notification
    */
   private shouldShowNotification(): boolean {
     return this.errorCount <= this.config.maxErrors;
   }
-  
+
   /**
    * Get recovery actions
    */
   private getRecoveryActions(error: any): any[] {
     const actions = [];
-    
+
     if (error.category === ErrorCategory.Unknown) {
       actions.push({
         label: 'Clear Caches',
@@ -332,22 +317,18 @@ export class GlobalErrorBoundary {
         }
       });
     }
-    
+
     actions.push({
       label: 'Restart Extension',
       action: async () => {
-        const confirmed = await vscode.window.showWarningMessage(
-          'This will restart the Ollama Copilot extension. Continue?',
-          'Yes',
-          'No'
-        );
-        
+        const confirmed = await vscode.window.showWarningMessage('This will restart the Ollama Copilot extension. Continue?', 'Yes', 'No');
+
         if (confirmed === 'Yes') {
           await vscode.commands.executeCommand('workbench.action.restartExtensionHost');
         }
       }
     });
-    
+
     return actions;
   }
 }
@@ -356,21 +337,17 @@ export class GlobalErrorBoundary {
  * Decorator to wrap methods with error boundary
  */
 export function ErrorBoundary(context?: string) {
-  return function (
-    target: any,
-    propertyKey: string,
-    descriptor: PropertyDescriptor
-  ) {
+  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
     const methodContext = context || `${target.constructor.name}.${propertyKey}`;
-    
+
     descriptor.value = function (...args: any[]) {
       const boundary = GlobalErrorBoundary.getInstance();
-      
+
       if (boundary) {
         return boundary.wrap(originalMethod.bind(this), methodContext)(...args);
       }
-      
+
       // Fallback if boundary not initialized
       try {
         return originalMethod.apply(this, args);
@@ -379,7 +356,7 @@ export function ErrorBoundary(context?: string) {
         throw error;
       }
     };
-    
+
     return descriptor;
   };
 }
@@ -388,21 +365,17 @@ export function ErrorBoundary(context?: string) {
  * Decorator to wrap async methods with error boundary
  */
 export function AsyncErrorBoundary(context?: string) {
-  return function (
-    target: any,
-    propertyKey: string,
-    descriptor: PropertyDescriptor
-  ) {
+  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
     const methodContext = context || `${target.constructor.name}.${propertyKey}`;
-    
+
     descriptor.value = async function (...args: any[]) {
       const boundary = GlobalErrorBoundary.getInstance();
-      
+
       if (boundary) {
         return boundary.wrapAsync(originalMethod.bind(this), methodContext)(...args);
       }
-      
+
       // Fallback if boundary not initialized
       try {
         return await originalMethod.apply(this, args);
@@ -411,7 +384,7 @@ export function AsyncErrorBoundary(context?: string) {
         throw error;
       }
     };
-    
+
     return descriptor;
   };
 }
